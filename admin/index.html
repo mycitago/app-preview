@@ -14,10 +14,26 @@
 <link rel="stylesheet" href="../css/citago-admin.css"><link rel="stylesheet" href="../css/mycitago-themes.css">
 <script src="../js/ui-theme.js"></script>
 <link rel="stylesheet" href="../css/mycitago-fase3-unified.css">
+<link rel="stylesheet" href="../css/marketplace-v3.css?v=20261015b">
 </head>
 <body class="dash-body dashboard-v3"><div id="citago-shell"></div>
 
-<main class="dash-main">
+<main class="dash-main marketplace-dashboard">
+<section class="marketplace-hero">
+  <div class="marketplace-hero-copy">
+    <span class="marketplace-eyebrow">CENTRO DE OPERACIONES</span>
+    <h1>Todo tu negocio, en un solo lugar.</h1>
+    <p>Revisa tu agenda, atiende clientes y comparte tu página de reservas sin perder tiempo entre pantallas.</p>
+    <div class="marketplace-hero-actions">
+      <button id="marketplace-new-appointment" class="marketplace-primary" type="button"><i data-lucide="calendar-plus"></i> Nueva cita</button>
+      <button class="marketplace-secondary ct-share-trigger" type="button"><i data-lucide="share-2"></i> Compartir reservas</button>
+    </div>
+  </div>
+  <div class="marketplace-today-card">
+    <span>HOY</span><strong id="marketplace-today-count">–</strong><p>citas programadas</p>
+    <a href="agenda.html">Abrir agenda <i data-lucide="arrow-right"></i></a>
+  </div>
+</section>
       <section class="dash-welcome">
         <div>
           <h1 id="welcome-title">Tu negocio, en un vistazo</h1>
@@ -50,7 +66,8 @@
         </button>
       </section>
 
-      <section class="dash-kpis">
+      <div class="marketplace-section-head"><div><span>RESUMEN</span><h2>Así marcha tu negocio</h2></div><a href="agenda.html">Ver agenda completa →</a></div>
+<section class="dash-kpis marketplace-kpis">
         <article class="kpi-card purple">
           <div class="kpi-icon"><i data-lucide="calendar-days"></i></div>
           <div class="kpi-copy"><span>Citas hoy</span><strong id="kpi-today">–</strong><small id="kpi-today-sub">Cargando…</small></div>
@@ -143,6 +160,13 @@
 <script src="../js/dashboard-data-loader.js"></script>
 <script src="../js/dashboard-punctuality.js"></script>
 <script src="../js/admin-dashboard-pro.js"></script>
-<script>document.addEventListener("DOMContentLoaded",()=>window.lucide?.createIcons());</script>
+<script>document.addEventListener("DOMContentLoaded",()=>{
+ window.lucide?.createIcons();
+ const btn=document.getElementById('marketplace-new-appointment');
+ btn?.addEventListener('click',()=>document.querySelector('.ct-new-appointment-trigger')?.click());
+ const src=document.getElementById('kpi-today'),dst=document.getElementById('marketplace-today-count');
+ const sync=()=>{if(src&&dst)dst.textContent=src.textContent||'–'}; sync();
+ if(src)new MutationObserver(sync).observe(src,{childList:true,subtree:true,characterData:true});
+});</script>
 <script src="../js/citago-shell.js"></script><script>document.addEventListener('DOMContentLoaded',()=>CitagoShell.mount({mode:'tenant',activePage:'inicio'}));</script></body>
 </html>
