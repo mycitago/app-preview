@@ -1,0 +1,18 @@
+CITAGO D3 — ARCHIVOS LISTOS PARA SUBIR
+
+Sube/reemplaza estos archivos respetando exactamente sus carpetas:
+
+admin/onboarding.html
+admin/servicios.html
+js/admin-services.js
+js/d3-onboarding-canonical.js
+js/d3-services-canonical.js
+
+IMPORTANTE:
+- NO elimines SERVICE_TEMPLATE_LIBRARY todavía.
+- NO elimines SERVICE_CATEGORY_RULES todavía.
+- Este paquete NO toca Mercado Pago, Google Business, planes, shell/sidebar ni navegación.
+- Los HTML ya incluyen los adaptadores D3.
+- admin-services.js ya incluye el listener de Ajustar precios por lote y deja el init legacy expuesto sin autoejecutarlo.
+
+Después de subir los 5 archivos a main, avísame con "listo" para verificar GitHub y luego hacemos la prueba real en navegador.

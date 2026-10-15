@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1"><script data-mycitago-theme-boot>(function(){try{var p=localStorage.getItem('mycitago:tenant-theme')||'system',d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light';document.documentElement.dataset.theme=d;document.documentElement.dataset.ctTheme=d;document.documentElement.style.colorScheme=d}catch(e){}})();</script>
+  <title>Panel · MyCitaGo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/admin-dashboard-pro.css">
+  
+  <link rel="stylesheet" href="../css/dashboard-clock.css">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<link rel="stylesheet" href="../css/citago-admin.css"><link rel="stylesheet" href="../css/mycitago-themes.css">
+<script src="../js/ui-theme.js"></script>
+<link rel="stylesheet" href="../css/mycitago-fase3-unified.css">
+</head>
+<body class="dash-body dashboard-v3"><div id="citago-shell"></div>
+
+<main class="dash-main">
+      <section class="dash-welcome">
+        <div>
+          <h1 id="welcome-title">Tu negocio, en un vistazo</h1>
+          <p id="today-label">Cargando resumen…</p>
+          <div id="business-clock-wrap" class="business-clock-wrap hidden" aria-live="polite">
+            <span class="business-clock-label">Hora de la sucursal principal</span>
+            <strong id="business-live-clock">--:--</strong>
+            <small id="business-clock-branch"></small>
+          </div>
+          <div id="business-timezone-warning" class="timezone-warning hidden" role="status">
+            <i data-lucide="clock-alert" aria-hidden="true"></i>
+            <span>Configura la zona horaria de tu sucursal para ver la hora correcta y el estado de puntualidad.</span>
+            <a href="configuracion.html">Configurar zona horaria</a>
+          </div>
+        </div>
+        <button id="hero-new-appointment" class="btn-new hero" type="button"><i data-lucide="plus"></i> Nueva cita</button>
+      </section>
+
+      <section id="trial-expiry-banner" class="trial-expiry-banner hidden" aria-live="polite">
+        <div class="trial-expiry-copy">
+          <span class="trial-expiry-icon"><i data-lucide="clock-alert"></i></span>
+          <div>
+            <strong id="trial-expiry-title">Tu prueba termina pronto</strong>
+            <small id="trial-expiry-message"></small>
+          </div>
+        </div>
+        <a href="planes.html" class="trial-expiry-cta">Elegir plan</a>
+        <button id="trial-banner-dismiss" class="trial-expiry-close" type="button" aria-label="Cerrar aviso">
+          <i data-lucide="x"></i>
+        </button>
+      </section>
+
+      <section class="dash-kpis">
+        <article class="kpi-card purple">
+          <div class="kpi-icon"><i data-lucide="calendar-days"></i></div>
+          <div class="kpi-copy"><span>Citas hoy</span><strong id="kpi-today">–</strong><small id="kpi-today-sub">Cargando…</small></div>
+          <a href="#agenda">Ver agenda <i data-lucide="arrow-right"></i></a>
+        </article>
+        <article class="kpi-card green">
+          <div class="kpi-icon"><i data-lucide="circle-check-big"></i></div>
+          <div class="kpi-copy"><span>Por confirmar</span><strong id="kpi-pending">–</strong><small>Citas pendientes</small></div>
+          <a href="#agenda">Ver pendientes <i data-lucide="arrow-right"></i></a>
+        </article>
+        <article class="kpi-card orange">
+          <div class="kpi-icon"><i data-lucide="badge-dollar-sign"></i></div>
+          <div class="kpi-copy"><span>Ingresos del mes</span><strong id="kpi-revenue">–</strong><small id="month-label">Mes actual</small></div>
+          <a href="contabilidad.html">Ver reportes <i data-lucide="arrow-right"></i></a>
+        </article>
+      </section>
+
+      <section class="mycitago-health-strip" id="business-health">
+        <div class="health-main"><span class="health-kicker">SIGUIENTE PASO</span><div class="health-title"><strong id="health-title">MyCitaGo está preparando tu siguiente acción</strong><span id="health-score">—</span></div><div class="health-progress"><i id="health-progress"></i></div><small id="health-note">Completa lo esencial de tu negocio.</small><a id="health-onboarding" class="health-onboarding" href="onboarding.html">Completar configuración →</a></div>
+      </section>
+
+      <section class="dash-grid-main">
+        <div class="dash-left-col">
+          <article class="dash-card agenda-card" id="agenda">
+            <div class="card-head">
+              <div><h2>Agenda de hoy</h2><p id="agenda-date"></p></div>
+              <div class="card-actions">
+                <button type="button" class="small-btn"><i data-lucide="calendar"></i> Hoy</button>
+              </div>
+            </div>
+            <div id="agenda-punctuality-summary" class="agenda-punctuality-summary hidden" aria-live="polite"></div>
+            <div id="today-timeline" class="today-timeline"></div>
+            <div class="card-footer-link"><a href="#upcoming">Ver próximas citas <i data-lucide="arrow-right"></i></a></div>
+          </article>
+
+          <article class="dash-card" id="upcoming">
+            <div class="card-head">
+              <div><h2>Próximas citas</h2><p>Tu agenda de los próximos días</p></div>
+              <a href="#agenda">Ver hoy</a>
+            </div>
+            <div id="upcoming-list" class="upcoming-list"></div>
+          </article>
+        </div>
+
+        <div class="dash-right-col">
+          <article class="dash-card activity-card">
+            <div class="card-head"><div><h2>Actividad reciente</h2><p>Lo último que pasó en tu negocio</p></div></div>
+            <div id="recent-activity" class="activity-list"></div>
+          </article>
+
+          <article class="dash-card quick-card">
+            <div class="card-head"><div><h2>Accesos rápidos</h2><p>Lo que más usas, a un clic</p></div></div>
+            <div class="quick-grid">
+              <button type="button" id="quick-new"><span class="qicon purple"><i data-lucide="calendar-plus"></i></span><b>Nueva cita</b></button>
+              <a href="clientes.html"><span class="qicon blue"><i data-lucide="users"></i></span><b>Clientes</b></a>
+              <a href="contabilidad.html"><span class="qicon green"><i data-lucide="chart-no-axes-combined"></i></span><b>Reportes</b></a>
+              <a href="configuracion.html"><span class="qicon orange"><i data-lucide="settings"></i></span><b>Mi negocio</b></a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="dash-card top-services-card">
+        <div class="card-head">
+          <div><h2>Servicios más reservados</h2><p>Qué está moviendo tu negocio</p></div>
+          <a href="servicios.html">Gestionar servicios</a>
+        </div>
+        <div id="top-services" class="top-services"></div>
+      </section>
+    </main>
+
+<div id="appointment-drawer" class="appointment-drawer hidden">
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="drawer-panel">
+    <div class="drawer-head">
+      <div><span>DETALLE DE CITA</span><h2 id="drawer-client">Cliente</h2></div>
+      <button id="drawer-close" class="icon-btn" type="button"><i data-lucide="x"></i></button>
+    </div>
+    <div id="drawer-content" class="drawer-content"></div>
+  </aside>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="../js/config.js"></script>
+<script src="../js/supabase.js"></script>
+<script src="../js/admin-auth.js"></script>
+<script src="../js/data-state.js"></script>
+<script src="../js/dashboard-data-loader.js"></script>
+<script src="../js/dashboard-punctuality.js"></script>
+<script src="../js/admin-dashboard-pro.js"></script>
+<script>document.addEventListener("DOMContentLoaded",()=>window.lucide?.createIcons());</script>
+<script src="../js/citago-shell.js"></script><script>document.addEventListener('DOMContentLoaded',()=>CitagoShell.mount({mode:'tenant',activePage:'inicio'}));</script></body>
+</html>

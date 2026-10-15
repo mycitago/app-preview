@@ -1,0 +1,12 @@
+{
+  "js/d3-onboarding-canonical.js_syntax": true,
+  "js/d3-services-canonical.js_syntax": true,
+  "onboarding_uses_canonical_rpc": true,
+  "services_uses_canonical_rpc": true,
+  "adapter_has_no_hardcoded_template_library": true,
+  "onboarding_keeps_existing_service_matching": true,
+  "services_batch_deduplicates_existing_names": true,
+  "no_mercado_pago_changes": true,
+  "no_google_business_changes": true,
+  "all_local_checks_pass": true
+}

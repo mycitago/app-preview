@@ -1,0 +1,19 @@
+{
+  "scope": "Dashboard only: operational business date + timezone completeness + KPI icon semantics",
+  "files_modified": [
+    "js/admin-dashboard-pro.js",
+    "js/dashboard-v3.js",
+    "admin/index.html",
+    "css/citago-v3.css"
+  ],
+  "not_modified": [
+    "RLS",
+    "Supabase schema",
+    "citago-shell.js",
+    "citago-shell-v3.js",
+    "other admin pages"
+  ],
+  "origin_late_card": "js/dashboard-v3.js::ensureLateKpi/renderLateKpi",
+  "reversible": true,
+  "installer_fails_closed": true
+}
