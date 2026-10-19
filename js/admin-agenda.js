@@ -31,16 +31,70 @@ async function cancelAppointment(id){
   if(!confirm(`¿Cancelar la cita de ${a.customers?.name||'este cliente'}? La cita se conservará en el historial.`))return;
   await updateAppointmentStatus(id,'cancelada');
 }
+function agendaWhatsApp(a){
+  const phone=String(a?.customers?.whatsapp||'').replace(/\D/g,'');
+  if(!phone)return;
+  const service=a?.services?.name||'tu servicio';
+  const date=new Date(a.appointment_date+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'long'});
+  const message=`Hola ${a.customers?.name||''} 👋 Te recordamos tu cita en ${agendaBiz?.name||'nuestro negocio'} el ${date} a las ${String(a.start_time||'').slice(0,5)} para ${service}. Te esperamos.`;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank','noopener');
+}
+function timeToMinutes(value){const [h,m]=String(value||'00:00').split(':').map(Number);return h*60+m}
+function ensureRescheduleDialog(){
+  let dialog=A('agenda-reschedule-dialog');if(dialog)return dialog;
+  dialog=document.createElement('dialog');dialog.id='agenda-reschedule-dialog';dialog.className='agenda-payment-dialog';
+  dialog.innerHTML=`<form method="dialog" id="agenda-reschedule-form"><div class="agenda-dialog-head"><div><span class="ct-eyebrow">REPROGRAMAR</span><h3>Mover cita</h3></div><button type="button" class="agenda-dialog-close" data-close-reschedule>×</button></div><p id="agenda-reschedule-caption"></p><label>Nueva fecha<input id="agenda-reschedule-date" type="date" required></label><label>Nueva hora<input id="agenda-reschedule-time" type="time" step="900" required></label><div class="agenda-dialog-actions"><button type="button" class="ct-btn ct-btn-secondary" data-close-reschedule>Cancelar</button><button type="submit" class="ct-btn ct-btn-primary">Guardar cambio</button></div></form>`;
+  document.body.appendChild(dialog);
+  dialog.querySelectorAll('[data-close-reschedule]').forEach(b=>b.onclick=()=>dialog.close());
+  dialog.querySelector('#agenda-reschedule-form').onsubmit=saveReschedule;
+  return dialog;
+}
+function openReschedule(id){
+  const a=agendaItems.find(x=>String(x.id)===String(id));if(!a)return;
+  const dialog=ensureRescheduleDialog();dialog.dataset.appointmentId=a.id;
+  A('agenda-reschedule-caption').textContent=`${a.customers?.name||'Cliente'} · ${a.services?.name||'Servicio'}`;
+  A('agenda-reschedule-date').value=a.appointment_date;
+  A('agenda-reschedule-time').value=String(a.start_time||'').slice(0,5);
+  dialog.showModal();
+}
+async function saveReschedule(ev){
+  ev.preventDefault();
+  const dialog=A('agenda-reschedule-dialog'),id=dialog?.dataset.appointmentId;
+  const a=agendaItems.find(x=>String(x.id)===String(id));if(!a)return;
+  const date=A('agenda-reschedule-date').value,start=A('agenda-reschedule-time').value;
+  const duration=Number(a.duration_charged||a.services?.duration_minutes)||60;
+  const startMin=timeToMinutes(start),endMin=startMin+duration;
+  const end=`${String(Math.floor(endMin/60)%24).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+  if(a.staff_id){
+    const {data:conflicts,error:conflictError}=await supabaseClient.from('appointments')
+      .select('id,start_time,end_time,status')
+      .eq('business_id',agendaBiz.id).eq('staff_id',a.staff_id).eq('appointment_date',date)
+      .neq('id',a.id).not('status','in','("cancelada","cancelled")');
+    if(conflictError)return alert('No pudimos validar la disponibilidad: '+conflictError.message);
+    const overlap=(conflicts||[]).some(x=>startMin<timeToMinutes(x.end_time)&&endMin>timeToMinutes(x.start_time));
+    if(overlap)return alert('Ese profesional ya tiene una cita en ese horario. Elige otro horario.');
+  }
+  const {error}=await supabaseClient.from('appointments').update({appointment_date:date,start_time:start,end_time:end})
+    .eq('id',a.id).eq('business_id',agendaBiz.id);
+  if(error)return alert('No se pudo reprogramar la cita: '+error.message);
+  dialog.close();
+  window.dispatchEvent(new CustomEvent('mycitago:appointment-updated',{detail:{id:a.id}}));
+  await loadAgenda();
+}
 function managementActions(a){
   const out=[];
   if(canConfirm(a))out.push(`<button type="button" class="agenda-mini-btn primary" data-appt-confirm="${a.id}">Confirmar</button>`);
   if(canComplete(a))out.push(`<button type="button" class="agenda-mini-btn primary" data-appt-complete="${a.id}">Completar</button>`);
+  if(canCancel(a))out.push(`<button type="button" class="agenda-mini-btn" data-appt-reschedule="${a.id}">Reprogramar</button>`);
+  if(a.customers?.whatsapp)out.push(`<button type="button" class="agenda-mini-btn" data-appt-whatsapp="${a.id}">WhatsApp</button>`);
   if(canCancel(a))out.push(`<button type="button" class="agenda-mini-btn danger" data-appt-cancel="${a.id}">Cancelar</button>`);
   return out.join('');
 }
 function bindManagementActions(root){
   root.querySelectorAll('[data-appt-confirm]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.apptConfirm,'confirmada'));
   root.querySelectorAll('[data-appt-complete]').forEach(b=>b.onclick=()=>updateAppointmentStatus(b.dataset.apptComplete,'completada'));
+  root.querySelectorAll('[data-appt-reschedule]').forEach(b=>b.onclick=()=>openReschedule(b.dataset.apptReschedule));
+  root.querySelectorAll('[data-appt-whatsapp]').forEach(b=>b.onclick=()=>{const a=agendaItems.find(x=>String(x.id)===String(b.dataset.apptWhatsapp));if(a)agendaWhatsApp(a)});
   root.querySelectorAll('[data-appt-cancel]').forEach(b=>b.onclick=()=>cancelAppointment(b.dataset.apptCancel));
 }
 async function requestReview(id){const a=agendaItems.find(x=>x.id===id);const{data,error}=await supabaseClient.rpc('create_review_request',{p_appointment_id:id});if(error)return alert('No se pudo generar la solicitud: '+error.message);const url=`${location.origin}${location.pathname.split('/admin/')[0]}/resena.html?t=${encodeURIComponent(data.token)}`;const phone=String(a?.customers?.whatsapp||'').replace(/\D/g,'');if(phone)window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Gracias por tu visita. ¿Nos compartes tu opinión? ${url}`)}`,'_blank','noopener');else{await navigator.clipboard.writeText(url);alert('Enlace de reseña copiado.')}await loadAgenda()}
