@@ -971,6 +971,7 @@ function bind(){
   });
 
   window.addEventListener('mycitago:appointment-created',()=>refreshData());
+  window.addEventListener('mycitago:appointment-updated',()=>refreshData());
   window.addEventListener('focus',()=>refreshData());
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible') refreshData();
