@@ -385,6 +385,40 @@ function renderPrices(){
   }));
 }
 
+function ensureCustomServiceCreator(){
+  const box=ob('custom-service-box'),form=ob('custom-service-form');
+  if(!box||!form)return;
+  ob('toggle-custom-service').onclick=()=>{form.classList.remove('hidden');form.style.display='grid';ob('custom-service-name').focus()};
+  ob('cancel-custom-service').onclick=()=>{form.classList.add('hidden');form.style.display='none'};
+  ob('save-custom-service').onclick=saveCustomService;
+}
+
+async function saveCustomService(){
+  const btn=ob('save-custom-service');
+  const name=ob('custom-service-name').value.trim();
+  const price=Number(ob('custom-service-price').value);
+  const duration=Number(ob('custom-service-duration').value);
+  const description=ob('custom-service-description').value.trim()||null;
+  if(!name)return obToast('Escribe el nombre del servicio.','error');
+  if(!Number.isFinite(price)||price<0)return obToast('Escribe un precio válido.','error');
+  if(!Number.isInteger(duration)||duration<5||duration>1440)return obToast('La duración debe estar entre 5 y 1440 minutos.','error');
+  if(onboardingExistingServices.some(s=>normalizeName(s.name)===normalizeName(name)))return obToast('Ya existe un servicio con ese nombre.','error');
+  btn.disabled=true;btn.textContent='Agregando…';
+  try{
+    const {error}=await supabaseClient.from('services').insert({
+      business_id:onboardingBiz.id,name,price,duration_minutes:duration,
+      description,category:'Servicios',active:true,featured:false
+    });
+    if(error)throw error;
+    await loadExistingServices();
+    renderTeamServiceOptions();
+    ob('custom-service-name').value='';ob('custom-service-price').value='';ob('custom-service-duration').value='60';ob('custom-service-description').value='';
+    ob('custom-service-form').classList.add('hidden');ob('custom-service-form').style.display='none';
+    obToast('Servicio nuevo agregado.','success');
+  }catch(error){obToast('No se pudo crear el servicio: '+error.message,'error')}
+  finally{btn.disabled=false;btn.textContent='Agregar servicio'}
+}
+
 async function saveServicesStep(){
   const rows=[...document.querySelectorAll('.price-row')];
   if(!rows.length)return obToast('Selecciona al menos un servicio.','error');
@@ -637,6 +671,7 @@ async function initOnboarding(){
   renderHoursEditor();
   renderTemplates();
   renderPrices();
+  ensureCustomServiceCreator();
   renderTeamServiceOptions();
   setTeamMode('solo');
   bindEvents();
