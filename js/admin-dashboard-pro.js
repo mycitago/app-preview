@@ -823,12 +823,13 @@ function renderDashboardLoadError(error){
 
 async function refreshData(){
   let snapshotError=null;
+  let snapshotLoaded=false;
 
   try{
     const snap=await DashboardDataLoader.loadBusinessDashboardSnapshot(
       supabaseClient,
       dashState.business.id,
-      {timeoutMs:12000}
+      {timeoutMs:8000}
     );
 
     dashState.appointments=snap.appointments;
@@ -838,20 +839,32 @@ async function refreshData(){
     dashState.primaryBranchId=snap.primaryBranchId;
     dashState.primaryBranchName=snap.primaryBranchName;
     dashState.branchCount=snap.branchCount;
+    snapshotLoaded=true;
   }catch(error){
     snapshotError=error;
-    console.warn('[MyCitaGo dashboard] Snapshot no disponible; usando consultas directas.',error);
+    console.warn('[MyCitaGo dashboard] Snapshot no disponible; usando tablas canónicas.',error);
+  }
 
-    try{
-      await Promise.all([
-        fetchAppointments(),
-        fetchServices(),
-        fetchCustomers()
-      ]);
-    }catch(fallbackError){
-      renderDashboardLoadError(fallbackError);
+  // appointments es la fuente operativa crítica. Siempre se verifica directamente
+  // para evitar que un snapshot vacío o desactualizado oculte citas existentes.
+  try{
+    await fetchAppointments();
+  }catch(appointmentsError){
+    if(!snapshotLoaded){
+      renderDashboardLoadError(appointmentsError);
       return;
     }
+    console.warn('[MyCitaGo dashboard] No se pudo verificar appointments; se conserva el snapshot.',appointmentsError);
+  }
+
+  // Servicios y clientes son complementarios: sus errores no deben derribar Agenda/KPIs.
+  if(!snapshotLoaded){
+    const secondary=await Promise.allSettled([fetchServices(),fetchCustomers()]);
+    secondary.forEach((result,index)=>{
+      if(result.status==='rejected'){
+        console.warn(index===0?'[MyCitaGo dashboard] Servicios no disponibles.':'[MyCitaGo dashboard] Clientes no disponibles.',result.reason);
+      }
+    });
   }
 
   try{
@@ -866,7 +879,7 @@ async function refreshData(){
     window.lucide?.createIcons();
 
     if(snapshotError){
-      console.info('[MyCitaGo dashboard] Panel recuperado con datos directos.');
+      console.info('[MyCitaGo dashboard] Panel recuperado con fuentes canónicas.');
     }
   }catch(error){
     renderDashboardLoadError(error);
