@@ -17,13 +17,29 @@ const dashState = {
 const $ = id => document.getElementById(id);
 
 function pad(n){ return String(n).padStart(2,'0'); }
-function dateKey(d=new Date()){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function dateKey(d=new Date()){
+  const timezone=dashState.dashboardTimezone;
+  if(timezone){
+    try{
+      const parts=new Intl.DateTimeFormat('en-CA',{
+        timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'
+      }).formatToParts(d);
+      const get=type=>parts.find(p=>p.type===type)?.value;
+      const year=get('year'),month=get('month'),day=get('day');
+      if(year&&month&&day) return `${year}-${month}-${day}`;
+    }catch(error){
+      console.warn('[MyCitaGo dashboard] Zona horaria inválida; usando hora local.',error);
+    }
+  }
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
 function monthKey(){ return dateKey().slice(0,7); }
 function monthStart(){ return `${monthKey()}-01`; }
 function addDaysKey(days){
-  const d=new Date();
+  const base=dateKey();
+  const d=new Date(`${base}T12:00:00`);
   d.setDate(d.getDate()+days);
-  return dateKey(d);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 function money(n){ return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0); }
 function hour(t){ return String(t||'').slice(0,5); }
@@ -808,11 +824,11 @@ function renderDashboardLoadError(error){
     ? 'La consulta tardó más de 12 segundos.'
     : (error?.message || 'Error de conexión o permisos.');
 
-  $('today-label').textContent='No pudimos cargar el resumen del negocio.';
-  $('kpi-today').textContent='—';
-  $('kpi-pending').textContent='—';
-  $('kpi-revenue').textContent='—';
-  $('kpi-today-sub').textContent='Error al cargar';
+  if($('today-label')) $('today-label').textContent='No pudimos cargar el resumen del negocio.';
+  if($('kpi-today')) $('kpi-today').textContent='0';
+  if($('kpi-pending')) $('kpi-pending').textContent='0';
+  if($('kpi-revenue')) $('kpi-revenue').textContent=money(0);
+  if($('kpi-today-sub')) $('kpi-today-sub').textContent='No se pudieron actualizar los datos';
 
   ['today-timeline','upcoming-list','recent-activity','top-services'].forEach(id=>{
     const root=$(id);
