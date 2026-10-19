@@ -52,8 +52,19 @@
   }
   function minToTime(total){const h=Math.floor(total/60)%24,m=total%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
   function endTime(start,duration){const [h,m]=String(start).split(':').map(Number);return minToTime(h*60+m+Number(duration||60))}
-  async function openAppointment(){
-    try{await ensureContext();await loadServices();const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());$('ct-appt-date').value=d.toISOString().slice(0,10);$('ct-appt-time').value='09:00';openDialog('ct-appointment-dialog');setTimeout(()=>$('ct-appt-name')?.focus(),80)}catch(e){toast(e.message,'error')}
+  async function openAppointment(prefill={}){
+    try{
+      await ensureContext();
+      await loadServices();
+      const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+      $('ct-appt-date').value=prefill.date||d.toISOString().slice(0,10);
+      $('ct-appt-time').value=prefill.time||'09:00';
+      if($('ct-appt-name'))$('ct-appt-name').value=prefill.name||'';
+      if($('ct-appt-phone'))$('ct-appt-phone').value=prefill.whatsapp||prefill.phone||'';
+      if($('ct-appt-notes'))$('ct-appt-notes').value=prefill.notes||'';
+      openDialog('ct-appointment-dialog');
+      setTimeout(()=>$(prefill.name?'ct-appt-service':'ct-appt-name')?.focus(),80);
+    }catch(e){toast(e.message,'error')}
   }
   async function createAppointment(ev){
     ev.preventDefault();const btn=$('ct-appt-submit');btn.disabled=true;const old=btn.textContent;btn.textContent='Guardando…';
