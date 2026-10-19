@@ -41,10 +41,10 @@ function toast(msg){
 function setBusinessIdentity(){
   const b=dashState.business;
   const name=b?.name || 'MyCitaGo';
-  $('sidebar-biz').textContent=name;
-  $('mobile-biz-name').textContent=name;
+  if($('sidebar-biz')) $('sidebar-biz').textContent=name;
+  if($('mobile-biz-name')) $('mobile-biz-name').textContent=name;
 
-  const logos=[$('brand-logo'),$('mobile-logo')];
+  const logos=[$('brand-logo'),$('mobile-logo')].filter(Boolean);
   logos.forEach(box=>{
     box.replaceChildren();
     if(b?.logo_url){
@@ -79,12 +79,12 @@ function setUserIdentity(){
   const user=dashState.session?.user;
   const rawName=user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Administrador';
   const display=rawName.split(/[._-]/).map(x=>x?x[0].toUpperCase()+x.slice(1):'').join(' ').trim();
-  $('user-name').textContent=display || 'Administrador';
-  $('user-avatar').textContent=(display || 'A').slice(0,2).toUpperCase();
+  if($('user-name')) $('user-name').textContent=display || 'Administrador';
+  if($('user-avatar')) $('user-avatar').textContent=(display || 'A').slice(0,2).toUpperCase();
   if($('user-role')) $('user-role').textContent=humanizeRole(dashState.business?.memberRole);
 
   const first=(display || 'Administrador').split(' ')[0];
-  $('welcome-title').textContent=`¡Hola, ${first}! 👋`;
+  if($('welcome-title')) $('welcome-title').textContent=`¡Hola, ${first}! 👋`;
 }
 
 function setDates(){
@@ -93,9 +93,9 @@ function setDates(){
   const long=timezone
     ? DashboardPunctuality.formatBusinessDate(now,timezone)
     : now.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  $('today-label').textContent=`Aquí tienes el resumen de tu negocio para ${long}.`;
-  $('agenda-date').textContent=long.charAt(0).toUpperCase()+long.slice(1);
-  $('month-label').textContent=new Intl.DateTimeFormat('es-MX',{
+  if($('today-label')) $('today-label').textContent=`Aquí tienes el resumen de tu negocio para ${long}.`;
+  if($('agenda-date')) $('agenda-date').textContent=long.charAt(0).toUpperCase()+long.slice(1);
+  if($('month-label')) $('month-label').textContent=new Intl.DateTimeFormat('es-MX',{
     timeZone:timezone || undefined,
     month:'long',year:'numeric'
   }).format(now);
@@ -322,16 +322,18 @@ function renderKPIs(){
     .filter(a=>a.appointment_date.startsWith(monthKey()) && ['confirmada','completada'].includes(a.status))
     .reduce((s,a)=>s+appointmentPrice(a),0);
 
-  $('kpi-today').textContent=todayItems.length;
+  if($('kpi-today')) $('kpi-today').textContent=todayItems.length;
   if($('kpi-upcoming'))$('kpi-upcoming').textContent=upcoming.length;
-  $('kpi-pending').textContent=pending.length;
-  $('kpi-revenue').textContent=money(revenue);
-  $('kpi-today-sub').textContent=`${todayItems.filter(a=>a.status==='confirmada').length} confirmada${todayItems.filter(a=>a.status==='confirmada').length===1?'':'s'}`;
+  if($('kpi-pending')) $('kpi-pending').textContent=pending.length;
+  if($('kpi-revenue')) $('kpi-revenue').textContent=money(revenue);
+  if($('kpi-today-sub')) $('kpi-today-sub').textContent=`${todayItems.filter(a=>a.status==='confirmada').length} confirmada${todayItems.filter(a=>a.status==='confirmada').length===1?'':'s'}`;
 
   const notify=pending.length;
   const badge=$('notification-count');
-  badge.textContent=notify;
-  badge.classList.toggle('hidden',!notify);
+  if(badge){
+    badge.textContent=notify;
+    badge.classList.toggle('hidden',!notify);
+  }
 }
 
 function statusPill(status){
@@ -923,7 +925,7 @@ function setupUserMenu(){
 
 function bind(){
   setupUserMenu();
-  $('btn-logout').addEventListener('click',logout);
+  $('btn-logout')?.addEventListener('click',logout);
   ['new-appointment','hero-new-appointment','quick-new','mobile-new','mobile-bottom-new']
     .forEach(id=>$(id)?.addEventListener('click',publicBooking));
   $('drawer-close').addEventListener('click',closeDrawer);$('drawer-backdrop').addEventListener('click',closeDrawer);
