@@ -59,27 +59,44 @@ function openReschedule(id){
 }
 async function saveReschedule(ev){
   ev.preventDefault();
+  const form=ev.currentTarget,submit=form?.querySelector('[type="submit"]');
+  if(submit?.disabled)return;
   const dialog=A('agenda-reschedule-dialog'),id=dialog?.dataset.appointmentId;
   const a=agendaItems.find(x=>String(x.id)===String(id));if(!a)return;
-  const date=A('agenda-reschedule-date').value,start=A('agenda-reschedule-time').value;
+  if(!canCancel(a))return alert('Esta cita ya no se puede reprogramar por su estado actual.');
+  const date=A('agenda-reschedule-date')?.value,start=A('agenda-reschedule-time')?.value;
+  if(!date||!/^\d{2}:\d{2}$/.test(start||''))return alert('Selecciona una fecha y hora válidas.');
   const duration=Number(a.duration_charged||a.services?.duration_minutes)||60;
   const startMin=timeToMinutes(start),endMin=startMin+duration;
-  const end=`${String(Math.floor(endMin/60)%24).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
-  if(a.staff_id){
-    const {data:conflicts,error:conflictError}=await supabaseClient.from('appointments')
-      .select('id,start_time,end_time,status')
-      .eq('business_id',agendaBiz.id).eq('staff_id',a.staff_id).eq('appointment_date',date)
-      .neq('id',a.id).not('status','in','("cancelada","cancelled")');
-    if(conflictError)return alert('No pudimos validar la disponibilidad: '+conflictError.message);
-    const overlap=(conflicts||[]).some(x=>startMin<timeToMinutes(x.end_time)&&endMin>timeToMinutes(x.start_time));
-    if(overlap)return alert('Ese profesional ya tiene una cita en ese horario. Elige otro horario.');
+  if(endMin>24*60)return alert('La cita no puede terminar después de medianoche.');
+  if(date===a.appointment_date && start===String(a.start_time||'').slice(0,5)){dialog.close();return}
+  const end=`${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+  if(submit){submit.disabled=true;submit.textContent='Validando…'}
+  try{
+    if(a.staff_id){
+      const {data:conflicts,error:conflictError}=await supabaseClient.from('appointments')
+        .select('id,start_time,end_time,status')
+        .eq('business_id',agendaBiz.id).eq('staff_id',a.staff_id).eq('appointment_date',date)
+        .neq('id',a.id);
+      if(conflictError)throw new Error('No pudimos validar la disponibilidad: '+conflictError.message);
+      const active=(conflicts||[]).filter(x=>!['cancelada','cancelled'].includes(String(x.status||'').toLowerCase()));
+      const overlap=active.some(x=>startMin<timeToMinutes(x.end_time)&&endMin>timeToMinutes(x.start_time));
+      if(overlap)return alert('Ese profesional ya tiene una cita en ese horario. Elige otro horario.');
+    }
+    if(submit)submit.textContent='Guardando…';
+    const {data,error}=await supabaseClient.from('appointments').update({appointment_date:date,start_time:start,end_time:end})
+      .eq('id',a.id).eq('business_id',agendaBiz.id).select('id,appointment_date,start_time,end_time,status').maybeSingle();
+    if(error)throw error;
+    if(!data)throw new Error('La cita no se actualizó. Verifica tus permisos y vuelve a intentar.');
+    dialog.close();
+    window.dispatchEvent(new CustomEvent('mycitago:appointment-updated',{detail:{id:a.id,data}}));
+    await loadAgenda();
+  }catch(error){
+    const raw=String(error?.message||error);
+    alert(/23P01|exclu|slot_taken/i.test(raw)?'Ese horario ya está ocupado. Elige otro.':'No se pudo reprogramar la cita: '+raw);
+  }finally{
+    if(submit){submit.disabled=false;submit.textContent='Guardar cambio'}
   }
-  const {error}=await supabaseClient.from('appointments').update({appointment_date:date,start_time:start,end_time:end})
-    .eq('id',a.id).eq('business_id',agendaBiz.id);
-  if(error)return alert('No se pudo reprogramar la cita: '+error.message);
-  dialog.close();
-  window.dispatchEvent(new CustomEvent('mycitago:appointment-updated',{detail:{id:a.id}}));
-  await loadAgenda();
 }
 function managementActions(a){
   const out=[];
