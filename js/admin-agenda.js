@@ -114,13 +114,52 @@ function bindManagementActions(root){
   root.querySelectorAll('[data-appt-whatsapp]').forEach(b=>b.onclick=()=>{const a=agendaItems.find(x=>String(x.id)===String(b.dataset.apptWhatsapp));if(a)agendaWhatsApp(a)});
   root.querySelectorAll('[data-appt-cancel]').forEach(b=>b.onclick=()=>cancelAppointment(b.dataset.apptCancel));
 }
-async function requestReview(id){const a=agendaItems.find(x=>x.id===id);const{data,error}=await supabaseClient.rpc('create_review_request',{p_appointment_id:id});if(error)return alert('No se pudo generar la solicitud: '+error.message);const url=`${location.origin}${location.pathname.split('/admin/')[0]}/resena.html?t=${encodeURIComponent(data.token)}`;const phone=String(a?.customers?.whatsapp||'').replace(/\D/g,'');if(phone)window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Gracias por tu visita. ¿Nos compartes tu opinión? ${url}`)}`,'_blank','noopener');else{await navigator.clipboard.writeText(url);alert('Enlace de reseña copiado.')}await loadAgenda()}
+const reviewRequestsInFlight=new Set();
+async function requestReview(id){
+  if(reviewRequestsInFlight.has(id))return;
+  const a=agendaItems.find(x=>String(x.id)===String(id));if(!a||!isCompleted(a))return;
+  const existing=agendaReviewRequests.get(a.id);
+  if(existing?.status==='pending'||existing?.status==='completed')return;
+  reviewRequestsInFlight.add(id);
+  try{
+    const{data,error}=await supabaseClient.rpc('create_review_request',{p_appointment_id:id});
+    if(error)throw error;
+    const token=data?.token||data?.[0]?.token;
+    if(!token)throw new Error('No se recibió el enlace de reseña.');
+    const url=`${location.origin}${location.pathname.split('/admin/')[0]}/resena.html?t=${encodeURIComponent(token)}`;
+    const phone=String(a?.customers?.whatsapp||'').replace(/\D/g,'');
+    if(phone)window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Gracias por tu visita. ¿Nos compartes tu opinión? ${url}`)}`,'_blank','noopener');
+    else{await navigator.clipboard.writeText(url);alert('Enlace de reseña copiado.')}
+    await loadAgenda();
+  }catch(error){alert('No se pudo generar la solicitud: '+String(error?.message||error))}
+  finally{reviewRequestsInFlight.delete(id)}
+}
 function paymentLabel(a){const p=agendaPayments.get(a.id);if(!p)return'<span class="agenda-op-pill neutral">Sin pago registrado</span>';const partial=Number(p.amount)<Number(a.price_charged||0),prefix=partial?'Anticipo':'Pago',state=String(p.status||'pending').toLowerCase(),cls=state==='paid'?'good':state==='review_required'?'warn':'neutral',method=p.payment_method?` · ${p.payment_method}`:(p.provider==='mercadopago'?' · Mercado Pago':'');return`<span class="agenda-op-pill ${cls}">${prefix} ${money(p.amount)} · ${state}${method}</span>`}
 function reviewLabel(a){if(!isCompleted(a))return'';const r=agendaReviewRequests.get(a.id);if(!r)return`<button type="button" class="agenda-mini-btn" data-review-request="${a.id}">Solicitar reseña</button>`;if(r.status==='completed')return'<span class="agenda-op-pill good">Reseña recibida</span>';if(r.status==='pending')return'<span class="agenda-op-pill neutral">Reseña solicitada</span>';return`<button type="button" class="agenda-mini-btn" data-review-request="${a.id}">Solicitar de nuevo</button>`}
 function canRegisterPayment(a){return!['cancelada','cancelled'].includes(String(a.status||'').toLowerCase())&&agendaPayments.get(a.id)?.status!=='paid'}
 function ensurePaymentDialog(){let dialog=A('agenda-payment-dialog');if(dialog)return dialog;dialog=document.createElement('dialog');dialog.id='agenda-payment-dialog';dialog.className='agenda-payment-dialog';dialog.innerHTML=`<form method="dialog" id="agenda-payment-form"><div class="agenda-dialog-head"><div><span class="ct-eyebrow">PAGO</span><h3>Registrar pago de la cita</h3></div><button type="button" class="agenda-dialog-close" data-close-payment>×</button></div><p id="agenda-payment-caption"></p><label>Importe<input id="agenda-payment-amount" type="number" min="0.01" step="0.01" required></label><label>Método<select id="agenda-payment-method" required><option value="cash">Efectivo</option><option value="card">Tarjeta</option><option value="transfer">Transferencia</option><option value="other">Otro</option></select></label><div class="agenda-dialog-actions"><button type="button" class="ct-btn ct-btn-secondary" data-close-payment>Cancelar</button><button type="submit" class="ct-btn ct-btn-primary">Guardar pago</button></div></form>`;document.body.appendChild(dialog);dialog.querySelectorAll('[data-close-payment]').forEach(b=>b.onclick=()=>dialog.close());dialog.querySelector('#agenda-payment-form').onsubmit=saveManualPayment;return dialog}
 function openPaymentDialog(id){const a=agendaItems.find(x=>x.id===id);if(!a)return;const dialog=ensurePaymentDialog();dialog.dataset.appointmentId=id;A('agenda-payment-caption').textContent=`${a.customers?.name||'Cliente'} · ${a.services?.name||'Servicio'} · Total ${money(a.price_charged)}`;A('agenda-payment-amount').value=String(Number(a.price_charged||0).toFixed(2));dialog.showModal()}
-async function saveManualPayment(ev){ev.preventDefault();const dialog=A('agenda-payment-dialog'),id=dialog?.dataset.appointmentId,a=agendaItems.find(x=>x.id===id);if(!id||!a)return;const amount=Number(A('agenda-payment-amount').value||0),method=A('agenda-payment-method').value;if(!(amount>0)||amount>Number(a.price_charged||0)){alert('El importe debe ser mayor a cero y no puede superar el precio de la cita.');return}const collectionMode=amount<Number(a.price_charged||0)?'partial':'full';const{error}=await supabaseClient.rpc('record_appointment_payment',{p_appointment_id:id,p_amount:amount,p_payment_method:method,p_collection_mode:collectionMode});if(error)return alert('No se pudo guardar el pago: '+error.message);dialog.close();await loadAgenda()}
+async function saveManualPayment(ev){
+  ev.preventDefault();
+  const form=ev.currentTarget,submit=form?.querySelector('[type="submit"]');
+  if(submit?.disabled)return;
+  const dialog=A('agenda-payment-dialog'),id=dialog?.dataset.appointmentId,a=agendaItems.find(x=>String(x.id)===String(id));
+  if(!id||!a)return;
+  if(['cancelada','cancelled'].includes(normalizedStatus(a)))return alert('No puedes registrar un pago en una cita cancelada.');
+  if(agendaPayments.get(a.id)?.status==='paid')return alert('Esta cita ya tiene un pago registrado.');
+  const amount=Number(A('agenda-payment-amount')?.value||0),method=A('agenda-payment-method')?.value;
+  const total=Number(a.price_charged||0);
+  if(!(amount>0)||amount>total){alert('El importe debe ser mayor a cero y no puede superar el precio de la cita.');return}
+  const collectionMode=amount<total?'partial':'full';
+  if(submit){submit.disabled=true;submit.textContent='Guardando…'}
+  try{
+    const{error}=await supabaseClient.rpc('record_appointment_payment',{p_appointment_id:id,p_amount:amount,p_payment_method:method,p_collection_mode:collectionMode});
+    if(error)throw error;
+    dialog.close();
+    await loadAgenda();
+  }catch(error){alert('No se pudo guardar el pago: '+String(error?.message||error))}
+  finally{if(submit){submit.disabled=false;submit.textContent='Guardar pago'}}
+}
 function renderList(items){
   const root=A('agenda-list');
   root.innerHTML=items.length?items.map(a=>`<div class="agenda-list-row"><time>${new Date(a.appointment_date+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'})} ${String(a.start_time).slice(0,5)}</time><div><b>${a.customers?.name||'Cliente'}</b><small>${a.services?.name||'Servicio'}${a.staff_id?' · '+(agendaStaff.find(s=>s.id===a.staff_id)?.name||'Profesional'):''}</small><div class="agenda-ops">${paymentLabel(a)}${reviewLabel(a)}</div></div><div class="agenda-row-actions"><em>${a.status||'Pendiente'}</em><div class="agenda-management-actions">${managementActions(a)}${canRegisterPayment(a)?`<button type="button" class="agenda-mini-btn" data-payment-register="${a.id}">Registrar pago</button>`:''}</div></div></div>`).join(''):'<div class="agenda-empty">No hay citas para esta vista.</div>';
